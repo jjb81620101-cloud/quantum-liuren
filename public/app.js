@@ -22,6 +22,7 @@ const els = {
   verdictBadge: document.querySelector("#verdictBadge"),
   mainVerdict: document.querySelector("#mainVerdict"),
   adviceText: document.querySelector("#adviceText"),
+  plainSummary: document.querySelector("#plainSummary"),
   smallStep: document.querySelector("#smallStep"),
   smallPalace: document.querySelector("#smallPalace"),
   smallMeaning: document.querySelector("#smallMeaning"),
@@ -757,6 +758,42 @@ function pickTopicReading(reading) {
   return `${profile.advice} ${profile.focus} ${passTone}`;
 }
 
+function midnightNote(reading) {
+  if (!reading.calendarBase?.iso) return "";
+  const castDate = new Date(reading.calendarBase.iso);
+  if (castDate.getHours() === 0) {
+    return "這一課已經過了凌晨 00:00，盤面以新日曆日的子時來看；若你心裡問的是昨晚延續的事，解讀時要把「昨天留下的尾巴」和「今天開始的變化」分開。";
+  }
+  return "";
+}
+
+function scorePlainMeaning(score) {
+  if (score >= 4) return "整體氣勢偏順，事情不是完全沒有阻力，但有可以推動的路。";
+  if (score >= 1) return "這件事可以試，但要先修條件、補資訊，不適合一口氣壓到底。";
+  if (score === 0) return "卦象偏中平，成不成主要看現實條件是否成熟。";
+  if (score >= -2) return "盤面有卡點，現在先處理風險，比急著追結果更重要。";
+  return "卦象提醒偏保守，先不要重押承諾，等資訊更清楚再動。";
+}
+
+function buildPlainSummary(reading) {
+  const profile = topicProfiles[reading.topic] || topicProfiles.general;
+  const firstPass = reading.passes[0];
+  const lastPass = reading.passes[2];
+  const formal = reading.formalLiuRen?.transmissions;
+  const moving = reading.iching.moving.length ? `動爻在第 ${reading.iching.moving.join("、")} 爻` : "沒有動爻";
+  const method = formal?.method ? `大六壬取法為「${formal.method}」` : "大六壬取法尚未明確";
+  const midnight = midnightNote(reading);
+  const lines = [
+    `白話來說：${scorePlainMeaning(reading.score)}`,
+    `小六壬落「${reading.small.name}」，它給的提醒是：${reading.small.meaning}`,
+    `${method}，三傳從「${firstPass.branch}」起，到「${lastPass.branch}」收，表示事情先看「${firstPass.keyword}」，最後會落到「${lastPass.keyword}」。`,
+    `易經是「${reading.iching.primary.name}」變「${reading.iching.changed.name}」，${moving}；梅花是「${reading.meihua.primary.name}」變「${reading.meihua.changed.name}」，重點在變化方向而不是一句定生死。`,
+    `所以這題先抓一個重點：${profile.focus} ${profile.advice}`,
+  ];
+  if (midnight) lines.push(midnight);
+  return lines.join("\n");
+}
+
 function detailHtml(title, lines) {
   return `<div class="selection-detail"><strong>${escapeHtml(title)}</strong>${lines
     .map((line) => `<p>${escapeHtml(line)}</p>`)
@@ -957,6 +994,7 @@ function formatReadingText(reading) {
     `類型：${reading.topicLabel}`,
     `總斷：${reading.verdictText}`,
     `建議：${reading.adviceText}`,
+    `白話總結：${reading.plainSummary || buildPlainSummary(reading)}`,
     `起課時間：${reading.calendarBase ? reading.calendarBase.localText : "未記錄"}`,
     `四柱：${reading.calendarBase ? `${reading.calendarBase.yearGanzhi} ${reading.calendarBase.monthGanzhi} ${reading.calendarBase.dayGanzhi} ${reading.calendarBase.hourGanzhi}` : "未記錄"}`,
     `月將 / 占時 / 旬空：${reading.calendarBase ? `${reading.calendarBase.monthGeneral} / ${reading.calendarBase.hourBranch} / ${reading.calendarBase.xunKong.join(", ")}` : "未記錄"}`,
@@ -1215,10 +1253,12 @@ function renderReading(reading, options = {}) {
   reading.verdictLabel = verdictLabel(reading.score);
   reading.verdictText = pickText(reading.score, reading.small, firstPass, lastPass);
   reading.adviceText = `${reading.small.advice} ${pickTopicReading(reading)}`;
+  reading.plainSummary = buildPlainSummary(reading);
 
   els.verdictBadge.textContent = reading.verdictLabel;
   els.mainVerdict.textContent = reading.verdictText;
   els.adviceText.textContent = reading.adviceText;
+  els.plainSummary.textContent = reading.plainSummary;
 
   els.smallStep.textContent = `量子三數 ${reading.smallDraws.join(" / ")}`;
   els.smallPalace.textContent = reading.small.name;
@@ -1256,6 +1296,8 @@ function renderReading(reading, options = {}) {
     `事元：${branches[reading.matterIndex]}`,
     `焦點：${branches[reading.focusIndex]}`,
     `分數：${reading.score}`,
+    "",
+    `白話總結：${reading.plainSummary}`,
   ].join("\n");
 
   els.copyReading.disabled = false;

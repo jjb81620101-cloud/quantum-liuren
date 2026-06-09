@@ -358,10 +358,20 @@ input:disabled {
 }
 
 .advice,
+.plain-summary,
 .card-copy,
 .notes {
   color: var(--muted);
   line-height: 1.7;
+}
+
+.plain-summary {
+  margin-top: 14px;
+  padding: 14px;
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: #fffaf2;
+  white-space: pre-line;
 }
 
 .palace-name {
