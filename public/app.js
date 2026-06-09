@@ -612,11 +612,125 @@ function buildFormalTransmissions(calendarBase, heavenPlate, formalLessons) {
   };
 }
 
+function lessonRelationKind(lesson) {
+  if (elementControls(lesson.lowerElement, lesson.upperElement)) return "thief";
+  if (elementControls(lesson.upperElement, lesson.lowerElement)) return "overcome";
+  return "none";
+}
+
+function lessonRelationText(kind) {
+  if (kind === "thief") return "下賊上";
+  if (kind === "overcome") return "上克下";
+  return "無克";
+}
+
+function chooseByBiYongOrSheHai(candidates, calendarBase) {
+  if (candidates.length === 1) {
+    return { lesson: candidates[0], method: "賊克", reason: "只有一課發動，直接取發用。" };
+  }
+  const dayStemElement = stemElement[calendarBase.dayStem];
+  const sameElement = candidates.filter((item) => branchElement[item.upper] === dayStemElement);
+  if (sameElement.length === 1) {
+    return { lesson: sameElement[0], method: "比用", reason: "多課發動，取與日干同五行者為用。" };
+  }
+  const ranked = [...(sameElement.length ? sameElement : candidates)].sort((a, b) => {
+    const aDepth = branchDistance(a.lower, a.upper);
+    const bDepth = branchDistance(b.lower, b.upper);
+    return bDepth - aDepth;
+  });
+  return { lesson: ranked[0], method: "涉害", reason: "多課同類，取涉害較深者作發用近似。" };
+}
+
+function isFanYin(heavenPlate) {
+  return heavenPlate.every((item) => branchDistance(item.earth, item.heaven) === 6);
+}
+
+function isFuYin(calendarBase, heavenPlate) {
+  return heavenOver(heavenPlate, calendarBase.dayBranch) === calendarBase.dayBranch;
+}
+
+function isBaZhuan(calendarBase) {
+  return ["甲", "庚", "丁", "己"].includes(calendarBase.dayStem);
+}
+
+function isBieZe(formalLessons) {
+  return uniqueBranches(formalLessons.map((item) => item.upper)).length <= 3;
+}
+
+function buildSequentialTransmissions(first, heavenPlate, skyGenerals, source) {
+  const second = heavenOver(heavenPlate, first);
+  const third = heavenOver(heavenPlate, second);
+  return [
+    { label: "初傳", branch: first, general: skyGenerals[first] || "", source },
+    { label: "中傳", branch: second, general: skyGenerals[second] || "", source: "初傳上神" },
+    { label: "末傳", branch: third, general: skyGenerals[third] || "", source: "中傳上神" },
+  ];
+}
+
+function buildFormalTransmissionsRefined(calendarBase, heavenPlate, formalLessons, skyGenerals) {
+  const steps = [];
+  const enriched = formalLessons.map((lesson) => ({ ...lesson, relationKind: lessonRelationKind(lesson) }));
+  const thief = enriched.filter((item) => item.relationKind === "thief");
+  const overcome = enriched.filter((item) => item.relationKind === "overcome");
+  steps.push(`四課克賊：${enriched.map((item) => `${item.label}${lessonRelationText(item.relationKind)}`).join("，")}`);
+
+  let method = "";
+  let note = "";
+  let first = "";
+  let source = "";
+
+  if (thief.length || overcome.length) {
+    const candidates = thief.length ? thief : overcome;
+    const chosen = chooseByBiYongOrSheHai(candidates, calendarBase);
+    method = chosen.method;
+    note = chosen.reason;
+    first = chosen.lesson.upper;
+    source = chosen.lesson.label;
+    steps.push(`克賊候選：${candidates.map((item) => `${item.label}${item.lower}->${item.upper}`).join("，")}`);
+  } else if (isFanYin(heavenPlate)) {
+    method = "返吟";
+    note = "天地盤上下相沖，按返吟骨架取支上發用。";
+    first = heavenOver(heavenPlate, calendarBase.dayBranch);
+    source = "返吟支上";
+  } else if (isFuYin(calendarBase, heavenPlate)) {
+    method = "伏吟";
+    note = "日支上見本支，按伏吟骨架取支上發用。";
+    first = calendarBase.dayBranch;
+    source = "伏吟支上";
+  } else if (isBaZhuan(calendarBase)) {
+    method = "八專";
+    note = "四課無克且日干落八專取法範圍，按八專骨架取干陽上神。";
+    first = formalLessons[0].upper;
+    source = "八專干陽";
+  } else if (isBieZe(formalLessons)) {
+    method = "別責";
+    note = "四課不備或上神重複，按別責骨架另取責神。";
+    first = formalLessons[1].upper;
+    source = "別責干陰";
+  } else {
+    method = "昴星";
+    note = "四課無克無特殊課體，按昴星骨架取酉位相關上神。";
+    first = heavenOver(heavenPlate, "酉");
+    source = "昴星酉上";
+  }
+
+  const transmissions = buildSequentialTransmissions(first, heavenPlate, skyGenerals, source);
+  steps.push(`取法：${method}；初傳取${first}。`);
+
+  return {
+    method,
+    note,
+    steps,
+    transmissions,
+    activeRelations: uniqueBranches([...thief, ...overcome].map((item) => item.upper)),
+  };
+}
+
 function buildFormalLiuRen(calendarBase) {
   const heavenPlate = buildHeavenPlate(calendarBase.monthGeneralIndex, calendarBase.hourBranchIndex);
   const skyGeneralData = buildSkyGenerals(calendarBase, heavenPlate);
   const lessons = buildFormalLessons(calendarBase, heavenPlate, skyGeneralData.skyGenerals);
-  const transmissions = buildFormalTransmissions(calendarBase, heavenPlate, lessons);
+  const transmissions = buildFormalTransmissionsRefined(calendarBase, heavenPlate, lessons, skyGeneralData.skyGenerals);
   return { heavenPlate, skyGeneralData, lessons, transmissions };
 }
 
@@ -1001,7 +1115,7 @@ function renderFormalLiuRen(reading) {
       <small>${item.source ? `發用：${item.source}` : "由上神遞傳"}</small>
     </div>`)
     .join("");
-  els.formalMethodNote.textContent = formal.transmissions.note;
+  els.formalMethodNote.textContent = `${formal.transmissions.note} 判法步驟：${(formal.transmissions.steps || []).join(" / ")}`;
 }
 
 function renderReading(reading, options = {}) {
