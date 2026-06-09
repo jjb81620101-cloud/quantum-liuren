@@ -40,6 +40,10 @@ const els = {
   formalMethodBadge: document.querySelector("#formalMethodBadge"),
   formalTransmissions: document.querySelector("#formalTransmissions"),
   formalMethodNote: document.querySelector("#formalMethodNote"),
+  auditBadge: document.querySelector("#auditBadge"),
+  copyAuditJson: document.querySelector("#copyAuditJson"),
+  auditExample: document.querySelector("#auditExample"),
+  auditOutput: document.querySelector("#auditOutput"),
   fourLessons: document.querySelector("#fourLessons"),
   threePasses: document.querySelector("#threePasses"),
   selectionPanel: document.querySelector("#selectionPanel"),
@@ -60,7 +64,7 @@ const els = {
   revealCards: [...document.querySelectorAll(".reveal-card")],
 };
 
-const loadingButtons = [...document.querySelectorAll("button:not(#copyReading):not(#clearHistory)")];
+const loadingButtons = [...document.querySelectorAll("button:not(#copyReading):not(#clearHistory):not(#copyAuditJson)")];
 const historyKey = "quantum-liuren-history-v1";
 
 const smallLiuren = [
@@ -1118,6 +1122,38 @@ function renderFormalLiuRen(reading) {
   els.formalMethodNote.textContent = `${formal.transmissions.note} 判法步驟：${(formal.transmissions.steps || []).join(" / ")}`;
 }
 
+function buildAuditJson(reading) {
+  return {
+    question: reading.question,
+    topic: reading.topicLabel,
+    calendar: reading.calendarBase,
+    formalLiuRen: {
+      heavenPlate: reading.formalLiuRen?.heavenPlate || [],
+      skyGeneralData: reading.formalLiuRen?.skyGeneralData || null,
+      lessons: reading.formalLiuRen?.lessons || [],
+      transmissions: reading.formalLiuRen?.transmissions || null,
+    },
+    quantumStyle: {
+      smallLiuren: {
+        draws: reading.smallDraws,
+        result: reading.small.name,
+      },
+      focusBranch: branches[reading.focusIndex],
+      lessons: reading.lessons,
+      passes: reading.passes,
+    },
+    iching: reading.iching,
+    meihua: reading.meihua,
+  };
+}
+
+function renderAudit(reading) {
+  const audit = buildAuditJson(reading);
+  els.auditBadge.textContent = reading.formalLiuRen?.transmissions?.method || "已起課";
+  els.auditOutput.textContent = JSON.stringify(audit, null, 2);
+  els.copyAuditJson.disabled = false;
+}
+
 function renderReading(reading, options = {}) {
   const firstPass = reading.passes[0];
   const lastPass = reading.passes[2];
@@ -1146,6 +1182,7 @@ function renderReading(reading, options = {}) {
   attachDetailEvents();
   renderCalendarBase(reading);
   renderFormalLiuRen(reading);
+  renderAudit(reading);
   renderIChing(reading);
   renderMeihua(reading);
 
@@ -1263,6 +1300,28 @@ els.copyReading.addEventListener("click", async () => {
   setTimeout(() => {
     els.copyReading.textContent = "複製卦文";
   }, 1300);
+});
+
+els.copyAuditJson.addEventListener("click", async () => {
+  if (!state.latestReading) return;
+  const text = JSON.stringify(buildAuditJson(state.latestReading), null, 2);
+  try {
+    await navigator.clipboard.writeText(text);
+    els.copyAuditJson.textContent = "已複製 JSON";
+  } catch {
+    els.auditOutput.textContent = text;
+    els.copyAuditJson.textContent = "已放入校驗欄";
+  }
+  setTimeout(() => {
+    els.copyAuditJson.textContent = "複製 JSON";
+  }, 1300);
+});
+
+els.auditExample.addEventListener("change", () => {
+  if (!els.auditExample.value) return;
+  els.castMode.value = "custom";
+  els.castDateTime.disabled = false;
+  els.castDateTime.value = els.auditExample.value;
 });
 
 els.clearHistory.addEventListener("click", () => {

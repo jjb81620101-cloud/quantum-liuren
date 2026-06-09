@@ -305,6 +305,12 @@ input:disabled {
   margin-bottom: 16px;
 }
 
+.audit-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin-bottom: 16px;
+}
+
 .card,
 .data-section,
 .notes {
@@ -676,6 +682,19 @@ input:disabled {
   font-weight: 800;
 }
 
+.audit-actions {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 320px);
+  gap: 12px;
+  align-items: end;
+  margin: 16px 0;
+}
+
+#auditOutput {
+  max-height: 360px;
+  overflow: auto;
+}
+
 .result-actions {
   display: flex;
   flex-wrap: wrap;
@@ -778,6 +797,7 @@ pre {
   .reading-grid,
   .details-grid,
   .formal-grid,
+  .audit-actions,
   .classic-grid,
   .calendar-panel,
   .history-list,
