@@ -31,6 +31,15 @@ const els = {
   threePasses: document.querySelector("#threePasses"),
   selectionPanel: document.querySelector("#selectionPanel"),
   drawLog: document.querySelector("#drawLog"),
+  ichingBadge: document.querySelector("#ichingBadge"),
+  primaryHexagram: document.querySelector("#primaryHexagram"),
+  changedHexagram: document.querySelector("#changedHexagram"),
+  primaryHexName: document.querySelector("#primaryHexName"),
+  changedHexName: document.querySelector("#changedHexName"),
+  ichingMeaning: document.querySelector("#ichingMeaning"),
+  meihuaBadge: document.querySelector("#meihuaBadge"),
+  meihuaPanel: document.querySelector("#meihuaPanel"),
+  meihuaMeaning: document.querySelector("#meihuaMeaning"),
   copyReading: document.querySelector("#copyReading"),
   clearHistory: document.querySelector("#clearHistory"),
   historyCount: document.querySelector("#historyCount"),
@@ -55,6 +64,37 @@ const generals = ["貴人", "螣蛇", "朱雀", "六合", "勾陳", "青龍", "�
 const passNames = ["初傳", "中傳", "末傳"];
 const lessonNames = ["一課", "二課", "三課", "四課"];
 const ritualLabels = ["靜心", "取數", "起小六壬", "布大盤", "成卦"];
+const trigramOrder = ["乾", "兌", "離", "震", "巽", "坎", "艮", "坤"];
+const trigrams = {
+  乾: { symbol: "☰", lines: [1, 1, 1], image: "天", nature: "健、開創、主動" },
+  兌: { symbol: "☱", lines: [1, 1, 0], image: "澤", nature: "悅、交流、承諾" },
+  離: { symbol: "☲", lines: [1, 0, 1], image: "火", nature: "明、呈現、依附" },
+  震: { symbol: "☳", lines: [1, 0, 0], image: "雷", nature: "動、啟發、驚醒" },
+  巽: { symbol: "☴", lines: [0, 1, 1], image: "風", nature: "入、滲透、協商" },
+  坎: { symbol: "☵", lines: [0, 1, 0], image: "水", nature: "險、流動、試探" },
+  艮: { symbol: "☶", lines: [0, 0, 1], image: "山", nature: "止、界線、沉澱" },
+  坤: { symbol: "☷", lines: [0, 0, 0], image: "地", nature: "順、承載、配合" },
+};
+const hexagramNames = {
+  1: "乾為天", 2: "坤為地", 3: "水雷屯", 4: "山水蒙", 5: "水天需", 6: "天水訟", 7: "地水師", 8: "水地比",
+  9: "風天小畜", 10: "天澤履", 11: "地天泰", 12: "天地否", 13: "天火同人", 14: "火天大有", 15: "地山謙", 16: "雷地豫",
+  17: "澤雷隨", 18: "山風蠱", 19: "地澤臨", 20: "風地觀", 21: "火雷噬嗑", 22: "山火賁", 23: "山地剝", 24: "地雷復",
+  25: "天雷無妄", 26: "山天大畜", 27: "山雷頤", 28: "澤風大過", 29: "坎為水", 30: "離為火", 31: "澤山咸", 32: "雷風恆",
+  33: "天山遯", 34: "雷天大壯", 35: "火地晉", 36: "地火明夷", 37: "風火家人", 38: "火澤睽", 39: "水山蹇", 40: "雷水解",
+  41: "山澤損", 42: "風雷益", 43: "澤天夬", 44: "天風姤", 45: "澤地萃", 46: "地風升", 47: "澤水困", 48: "水風井",
+  49: "澤火革", 50: "火風鼎", 51: "震為雷", 52: "艮為山", 53: "風山漸", 54: "雷澤歸妹", 55: "雷火豐", 56: "火山旅",
+  57: "巽為風", 58: "兌為澤", 59: "風水渙", 60: "水澤節", 61: "風澤中孚", 62: "雷山小過", 63: "水火既濟", 64: "火水未濟",
+};
+const hexagramTable = {
+  乾: { 乾: 1, 兌: 43, 離: 14, 震: 34, 巽: 9, 坎: 5, 艮: 26, 坤: 11 },
+  兌: { 乾: 10, 兌: 58, 離: 38, 震: 54, 巽: 61, 坎: 60, 艮: 41, 坤: 19 },
+  離: { 乾: 13, 兌: 49, 離: 30, 震: 55, 巽: 37, 坎: 63, 艮: 22, 坤: 36 },
+  震: { 乾: 25, 兌: 17, 離: 21, 震: 51, 巽: 42, 坎: 3, 艮: 27, 坤: 24 },
+  巽: { 乾: 44, 兌: 28, 離: 50, 震: 32, 巽: 57, 坎: 48, 艮: 18, 坤: 46 },
+  坎: { 乾: 6, 兌: 47, 離: 64, 震: 40, 巽: 59, 坎: 29, 艮: 4, 坤: 7 },
+  艮: { 乾: 33, 兌: 31, 離: 56, 震: 62, 巽: 53, 坎: 39, 艮: 52, 坤: 15 },
+  坤: { 乾: 12, 兌: 45, 離: 35, 震: 16, 巽: 20, 坎: 8, 艮: 23, 坤: 2 },
+};
 
 const branchMeaning = {
   子: "暗流、消息、起念",
@@ -434,6 +474,57 @@ function buildReading(readingInput) {
   };
 }
 
+function trigramFromLines(lines) {
+  return trigramOrder.find((name) => trigrams[name].lines.every((line, index) => line === lines[index]));
+}
+
+function hexagramFromLines(lines) {
+  const lower = trigramFromLines(lines.slice(0, 3));
+  const upper = trigramFromLines(lines.slice(3, 6));
+  const number = hexagramTable[lower][upper];
+  return { number, name: hexagramNames[number], upper, lower, lines };
+}
+
+async function buildIChing() {
+  const values = [];
+  const lines = [];
+  const moving = [];
+
+  for (let index = 0; index < 6; index += 1) {
+    const value = await randomInt(6, 9);
+    values.push(value);
+    lines.push(value === 7 || value === 9 ? 1 : 0);
+    if (value === 6 || value === 9) moving.push(index + 1);
+  }
+
+  const changedLines = lines.map((line, index) => (moving.includes(index + 1) ? 1 - line : line));
+  return {
+    values,
+    lines,
+    moving,
+    primary: hexagramFromLines(lines),
+    changed: hexagramFromLines(changedLines),
+  };
+}
+
+async function buildMeihua() {
+  const draws = [await randomInt(1, 999), await randomInt(1, 999), await randomInt(1, 999)];
+  const upper = trigramOrder[(draws[0] - 1) % 8];
+  const lower = trigramOrder[(draws[1] - 1) % 8];
+  const movingLine = ((draws[2] - 1) % 6) + 1;
+  const primaryLines = [...trigrams[lower].lines, ...trigrams[upper].lines];
+  const changedLines = primaryLines.map((line, index) => (index + 1 === movingLine ? 1 - line : line));
+
+  return {
+    draws,
+    upper,
+    lower,
+    movingLine,
+    primary: hexagramFromLines(primaryLines),
+    changed: hexagramFromLines(changedLines),
+  };
+}
+
 function verdictLabel(score) {
   if (score >= 2) return "偏吉";
   if (score <= -2) return "偏凶";
@@ -451,6 +542,8 @@ function formatReadingText(reading) {
     `月將：${branches[reading.monthGeneralIndex]}，占時：${branches[reading.hourIndex]}，焦點：${branches[reading.focusIndex]}宮`,
     `四課：${reading.lessons.map((item) => `${item.label}${item.branch}${item.general}`).join(" / ")}`,
     `三傳：${reading.passes.map((item) => `${item.label}${item.branch}${item.general}`).join(" / ")}`,
+    `易經：${reading.iching.primary.name} -> ${reading.iching.changed.name}（動爻：${reading.iching.moving.length ? reading.iching.moving.join(", ") : "無"}）`,
+    `梅花：${reading.meihua.upper}上${reading.meihua.lower}下，動${reading.meihua.movingLine}爻，${reading.meihua.primary.name} -> ${reading.meihua.changed.name}`,
     `分數：${reading.score}`,
   ].join("\n");
 }
@@ -503,6 +596,44 @@ function addHistory(reading) {
   renderHistory();
 }
 
+function renderHexagram(target, lines, moving = []) {
+  target.innerHTML = lines
+    .map((line, index) => {
+      const className = line ? "hex-line yang" : "hex-line yin";
+      const movingClass = moving.includes(index + 1) ? " moving" : "";
+      return `<div class="${className}${movingClass}"><span></span><span></span></div>`;
+    })
+    .reverse()
+    .join("");
+}
+
+function renderIChing(reading) {
+  const { iching } = reading;
+  els.ichingBadge.textContent = iching.moving.length ? `動爻 ${iching.moving.join(" / ")}` : "靜卦";
+  els.primaryHexName.textContent = `${iching.primary.number}. ${iching.primary.name}`;
+  els.changedHexName.textContent = `${iching.changed.number}. ${iching.changed.name}`;
+  renderHexagram(els.primaryHexagram, iching.lines, iching.moving);
+  renderHexagram(els.changedHexagram, iching.changed.lines);
+  els.ichingMeaning.textContent = iching.moving.length
+    ? `六爻取數 ${iching.values.join(" / ")}，由 ${iching.primary.name} 變 ${iching.changed.name}。動爻代表事情正在轉折，先看動處。`
+    : `六爻取數 ${iching.values.join(" / ")}，本卦 ${iching.primary.name} 無動爻。靜卦重在守住本象，不急著求變。`;
+}
+
+function renderMeihua(reading) {
+  const { meihua } = reading;
+  els.meihuaBadge.textContent = `動 ${meihua.movingLine} 爻`;
+  els.meihuaPanel.innerHTML = `<div class="meihua-row">
+      <span>上卦</span><strong>${meihua.upper} ${trigrams[meihua.upper].symbol}</strong><small>${trigrams[meihua.upper].image}：${trigrams[meihua.upper].nature}</small>
+    </div>
+    <div class="meihua-row">
+      <span>下卦</span><strong>${meihua.lower} ${trigrams[meihua.lower].symbol}</strong><small>${trigrams[meihua.lower].image}：${trigrams[meihua.lower].nature}</small>
+    </div>
+    <div class="meihua-row">
+      <span>動爻</span><strong>${meihua.movingLine} 爻</strong><small>三數：${meihua.draws.join(" / ")}</small>
+    </div>`;
+  els.meihuaMeaning.textContent = `梅花成 ${meihua.primary.name}，變 ${meihua.changed.name}。上卦看外象，下卦看內因，動爻看當下最該處理的位置。`;
+}
+
 function renderReading(reading, options = {}) {
   const firstPass = reading.passes[0];
   const lastPass = reading.passes[2];
@@ -529,11 +660,15 @@ function renderReading(reading, options = {}) {
   renderList(els.fourLessons, reading.lessons, "lesson-item", "lesson");
   renderList(els.threePasses, reading.passes, "pass-item", "pass");
   attachDetailEvents();
+  renderIChing(reading);
+  renderMeihua(reading);
 
   els.drawLog.textContent = [
     `問題：${reading.question}`,
     `類型：${reading.topicLabel}`,
     `小六壬三數：${reading.smallDraws.join(", ")} -> ${reading.small.name}`,
+    `易經六爻：${reading.iching.values.join(", ")} -> ${reading.iching.primary.name} / ${reading.iching.changed.name}`,
+    `梅花三數：${reading.meihua.draws.join(", ")} -> ${reading.meihua.primary.name} / ${reading.meihua.changed.name}`,
     `月將：${branches[reading.monthGeneralIndex]}`,
     `占時：${branches[reading.hourIndex]}`,
     `人元：${branches[reading.subjectIndex]}`,
@@ -578,6 +713,8 @@ async function castReading() {
     subjectIndex: await randomInt(0, 11),
     matterIndex: await randomInt(0, 11),
   });
+  reading.iching = await buildIChing();
+  reading.meihua = await buildMeihua();
 
   state.latestReading = reading;
   renderReading(reading);
@@ -592,6 +729,8 @@ async function castReading() {
   revealCard(3);
   revealCard(4);
   revealCard(5);
+  revealCard(6);
+  revealCard(7);
   revealCard(0);
   showDetail("branch", reading.focusIndex);
   await sleep(180);
