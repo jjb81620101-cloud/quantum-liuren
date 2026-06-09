@@ -155,6 +155,53 @@ function formatHex(hex) {
   return hex.match(/.{1,32}/g).join("\n");
 }
 
+function randomHexFromBrowser(byteCount) {
+  const bytes = new Uint8Array(byteCount);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function parseRandomPayload(payload, byteCount) {
+  if (payload && payload.bytes && payload.bytes.length === byteCount * 2) {
+    return { bytes: payload.bytes, source: payload.source || "Local API", quantum: Boolean(payload.quantum) };
+  }
+  if (payload && payload.data && payload.data.bytes && payload.data.bytes.length === byteCount * 2) {
+    return { bytes: payload.data.bytes, source: "DocDailey hardware QRNG", quantum: true };
+  }
+  if (payload && payload.qrn && payload.qrn.length === byteCount * 2) {
+    return { bytes: payload.qrn, source: "LfD hardware QRNG", quantum: true };
+  }
+  throw new Error("Unexpected random source response");
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+async function getRandomPayload(byteCount) {
+  const sources = [
+    `api/random?bytes=${byteCount}`,
+    `https://quantum.docdailey.ai/random/bytes?count=${byteCount}`,
+    `https://lfdr.de/qrng_api/qrng?length=${byteCount}`,
+  ];
+
+  for (const source of sources) {
+    try {
+      return parseRandomPayload(await fetchJson(source), byteCount);
+    } catch {
+      // Try the next source. GitHub Pages has no local API, and public QRNG APIs can be temporarily unavailable.
+    }
+  }
+
+  return {
+    bytes: randomHexFromBrowser(byteCount),
+    source: "Browser crypto fallback",
+    quantum: false,
+  };
+}
+
 function resetRevealCards() {
   els.revealCards.forEach((card) => {
     card.classList.remove("revealed");
@@ -182,9 +229,7 @@ function renderRitual(stepIndex = -1, label = "待命") {
 async function fetchBytes(count = 96) {
   setLoading(true);
   try {
-    const response = await fetch(`/api/random?bytes=${count}`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json();
+    const payload = await getRandomPayload(count);
     const bytes = hexToBytes(payload.bytes);
 
     state.bytes = bytes;

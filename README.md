@@ -31,6 +31,10 @@ Choose a different port:
 $env:PORT=3000; npm start
 ```
 
+## Run Online
+
+This app also works as a static site on GitHub Pages. The browser tries the public QRNG APIs directly, then falls back to `crypto.getRandomValues` if those APIs are unavailable.
+
 ## Random Sources
 
 The server tries these sources in order:
