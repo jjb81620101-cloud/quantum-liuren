@@ -40,6 +40,17 @@
               <option value="health">身心狀態</option>
             </select>
           </label>
+          <label class="select-label" for="castMode">
+            起課時間
+            <select id="castMode">
+              <option value="now">使用現在時間</option>
+              <option value="custom">指定時間</option>
+            </select>
+          </label>
+          <label class="select-label time-field" for="castDateTime">
+            指定日期時間
+            <input id="castDateTime" type="datetime-local" />
+          </label>
           <button id="castReading">量子起課</button>
         </div>
         <div class="ritual-panel">
@@ -49,6 +60,19 @@
           </div>
           <div id="ritualSteps" class="ritual-steps"></div>
         </div>
+      </section>
+
+      <section class="calendar-grid">
+        <article id="calendarCard" class="card reveal-card">
+          <div class="card-head">
+            <h2>大六壬曆法底座</h2>
+            <span id="calendarBadge" class="badge">未起課</span>
+          </div>
+          <div id="calendarPanel" class="calendar-panel">
+            起課後會顯示年、月、日、時干支，旬空，占時與月將。
+          </div>
+          <p id="calendarNote" class="card-copy">第一階段先建立可檢查的曆法資料；月將採節氣日期近似，後續可替換為精確節氣。</p>
+        </article>
       </section>
 
       <section class="reading-grid">

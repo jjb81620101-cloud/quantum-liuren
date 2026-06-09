@@ -15,6 +15,8 @@ const els = {
   bitsOutput: document.querySelector("#bitsOutput"),
   questionInput: document.querySelector("#questionInput"),
   topicType: document.querySelector("#topicType"),
+  castMode: document.querySelector("#castMode"),
+  castDateTime: document.querySelector("#castDateTime"),
   ritualState: document.querySelector("#ritualState"),
   ritualSteps: document.querySelector("#ritualSteps"),
   verdictBadge: document.querySelector("#verdictBadge"),
@@ -27,6 +29,9 @@ const els = {
   bigFocus: document.querySelector("#bigFocus"),
   branchWheel: document.querySelector("#branchWheel"),
   bigMeaning: document.querySelector("#bigMeaning"),
+  calendarBadge: document.querySelector("#calendarBadge"),
+  calendarPanel: document.querySelector("#calendarPanel"),
+  calendarNote: document.querySelector("#calendarNote"),
   fourLessons: document.querySelector("#fourLessons"),
   threePasses: document.querySelector("#threePasses"),
   selectionPanel: document.querySelector("#selectionPanel"),
@@ -60,6 +65,7 @@ const smallLiuren = [
 ];
 
 const branches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
+const stems = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
 const generals = ["貴人", "螣蛇", "朱雀", "六合", "勾陳", "青龍", "天空", "白虎", "太常", "玄武", "太陰", "天后"];
 const passNames = ["初傳", "中傳", "末傳"];
 const lessonNames = ["一課", "二課", "三課", "四課"];
@@ -322,6 +328,143 @@ function rotate(list, start) {
   return list.map((_, index) => list[(start + index) % list.length]);
 }
 
+function ganzhi(stemIndex, branchIndex) {
+  return `${stems[((stemIndex % 10) + 10) % 10]}${branches[((branchIndex % 12) + 12) % 12]}`;
+}
+
+function dateOnly(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function getCastDate() {
+  if (els.castMode.value === "custom" && els.castDateTime.value) {
+    return new Date(els.castDateTime.value);
+  }
+  return new Date();
+}
+
+function getYearGanzhi(date) {
+  let year = date.getFullYear();
+  const lichunApprox = new Date(year, 1, 4, 0, 0, 0);
+  if (date < lichunApprox) year -= 1;
+  return {
+    year,
+    stemIndex: (year - 4) % 10,
+    branchIndex: (year - 4) % 12,
+  };
+}
+
+function getSolarMonthInfo(date, yearStemIndex) {
+  const boundaries = [
+    [1, 4, "寅"],
+    [2, 6, "卯"],
+    [3, 5, "辰"],
+    [4, 6, "巳"],
+    [5, 6, "午"],
+    [6, 7, "未"],
+    [7, 8, "申"],
+    [8, 8, "酉"],
+    [9, 8, "戌"],
+    [10, 7, "亥"],
+    [11, 7, "子"],
+    [0, 6, "丑"],
+  ];
+  let solarMonth = 11;
+  for (let index = 0; index < boundaries.length; index += 1) {
+    const [month, day] = boundaries[index];
+    const boundaryYear = month === 0 ? date.getFullYear() + 1 : date.getFullYear();
+    if (date >= new Date(boundaryYear, month, day, 0, 0, 0)) solarMonth = index;
+  }
+  if (date < new Date(date.getFullYear(), 1, 4, 0, 0, 0)) solarMonth = 11;
+
+  const branch = boundaries[solarMonth][2];
+  const yinStemStartByYearStem = [2, 4, 6, 8, 0, 2, 4, 6, 8, 0];
+  const stemIndex = (yinStemStartByYearStem[((yearStemIndex % 10) + 10) % 10] + solarMonth) % 10;
+  return {
+    solarMonth,
+    stemIndex,
+    branchIndex: branches.indexOf(branch),
+  };
+}
+
+function getDayGanzhi(date) {
+  const base = new Date(1984, 1, 2);
+  const days = Math.floor((dateOnly(date) - dateOnly(base)) / 86400000);
+  const index = ((days % 60) + 60) % 60;
+  return {
+    index,
+    stemIndex: index % 10,
+    branchIndex: index % 12,
+  };
+}
+
+function getHourInfo(date, dayStemIndex) {
+  const hour = date.getHours();
+  const branchIndex = hour === 23 ? 0 : Math.floor((hour + 1) / 2) % 12;
+  const ziStemStartByDayStem = [0, 2, 4, 6, 8, 0, 2, 4, 6, 8];
+  const stemIndex = (ziStemStartByDayStem[((dayStemIndex % 10) + 10) % 10] + branchIndex) % 10;
+  return { branchIndex, stemIndex };
+}
+
+function getXunKong(dayIndex) {
+  const xunStart = Math.floor(dayIndex / 10) * 10;
+  return [branches[(xunStart + 10) % 12], branches[(xunStart + 11) % 12]];
+}
+
+function getMonthGeneral(date) {
+  const rules = [
+    [0, 20, "子", "大寒"],
+    [1, 19, "亥", "雨水"],
+    [2, 21, "戌", "春分"],
+    [3, 20, "酉", "穀雨"],
+    [4, 21, "申", "小滿"],
+    [5, 21, "未", "夏至"],
+    [6, 23, "午", "大暑"],
+    [7, 23, "巳", "處暑"],
+    [8, 23, "辰", "秋分"],
+    [9, 23, "卯", "霜降"],
+    [10, 22, "寅", "小雪"],
+    [11, 22, "丑", "冬至"],
+  ];
+  let active = rules[11];
+  for (const rule of rules) {
+    if (date >= new Date(date.getFullYear(), rule[0], rule[1], 0, 0, 0)) active = rule;
+  }
+  return {
+    branch: active[2],
+    branchIndex: branches.indexOf(active[2]),
+    term: active[3],
+  };
+}
+
+function buildCalendarBase(date) {
+  const year = getYearGanzhi(date);
+  const month = getSolarMonthInfo(date, year.stemIndex);
+  const day = getDayGanzhi(date);
+  const hour = getHourInfo(date, day.stemIndex);
+  const monthGeneral = getMonthGeneral(date);
+  const xunKong = getXunKong(day.index);
+
+  return {
+    iso: date.toISOString(),
+    localText: date.toLocaleString("zh-Hant", { dateStyle: "medium", timeStyle: "short" }),
+    yearGanzhi: ganzhi(year.stemIndex, year.branchIndex),
+    monthGanzhi: ganzhi(month.stemIndex, month.branchIndex),
+    dayGanzhi: ganzhi(day.stemIndex, day.branchIndex),
+    hourGanzhi: ganzhi(hour.stemIndex, hour.branchIndex),
+    dayStem: stems[day.stemIndex],
+    dayBranch: branches[day.branchIndex],
+    hourBranch: branches[hour.branchIndex],
+    hourBranchIndex: hour.branchIndex,
+    monthGeneral: monthGeneral.branch,
+    monthGeneralIndex: monthGeneral.branchIndex,
+    monthGeneralTerm: monthGeneral.term,
+    xunKong,
+    dayIndex: day.index,
+    note: "月將採固定節氣日期近似；正式版可替換為精確天文節氣。",
+  };
+}
+
 function pickText(score, small, firstPass, lastPass) {
   if (score >= 4) return `卦象偏吉，${small.name}得勢，${firstPass.branch}起、${lastPass.branch}收，事情有推進空間。`;
   if (score >= 1) return `卦象可行但需修整，${small.name}給出方向，先處理「${firstPass.keyword}」再求結果。`;
@@ -538,6 +681,9 @@ function formatReadingText(reading) {
     `類型：${reading.topicLabel}`,
     `總斷：${reading.verdictText}`,
     `建議：${reading.adviceText}`,
+    `起課時間：${reading.calendarBase ? reading.calendarBase.localText : "未記錄"}`,
+    `四柱：${reading.calendarBase ? `${reading.calendarBase.yearGanzhi} ${reading.calendarBase.monthGanzhi} ${reading.calendarBase.dayGanzhi} ${reading.calendarBase.hourGanzhi}` : "未記錄"}`,
+    `月將 / 占時 / 旬空：${reading.calendarBase ? `${reading.calendarBase.monthGeneral} / ${reading.calendarBase.hourBranch} / ${reading.calendarBase.xunKong.join(", ")}` : "未記錄"}`,
     `小六壬：${reading.small.name}（${reading.smallDraws.join(" / ")}）`,
     `月將：${branches[reading.monthGeneralIndex]}，占時：${branches[reading.hourIndex]}，焦點：${branches[reading.focusIndex]}宮`,
     `四課：${reading.lessons.map((item) => `${item.label}${item.branch}${item.general}`).join(" / ")}`,
@@ -634,6 +780,30 @@ function renderMeihua(reading) {
   els.meihuaMeaning.textContent = `梅花成 ${meihua.primary.name}，變 ${meihua.changed.name}。上卦看外象，下卦看內因，動爻看當下最該處理的位置。`;
 }
 
+function renderCalendarBase(reading) {
+  const base = reading.calendarBase;
+  els.calendarBadge.textContent = `${base.dayGanzhi}日 ${base.hourBranch}時`;
+  els.calendarPanel.innerHTML = `<div class="calendar-row">
+      <span>起課時間</span><strong>${escapeHtml(base.localText)}</strong><small>${escapeHtml(base.note)}</small>
+    </div>
+    <div class="calendar-row">
+      <span>四柱</span><strong>${base.yearGanzhi} · ${base.monthGanzhi} · ${base.dayGanzhi} · ${base.hourGanzhi}</strong><small>年、月、日、時干支</small>
+    </div>
+    <div class="calendar-row">
+      <span>日辰</span><strong>${base.dayStem}日 ${base.dayBranch}辰</strong><small>後續四課會以日干、日支為核心</small>
+    </div>
+    <div class="calendar-row">
+      <span>占時</span><strong>${base.hourBranch}</strong><small>目前作為天地盤布盤的占時地支</small>
+    </div>
+    <div class="calendar-row">
+      <span>月將</span><strong>${base.monthGeneral}</strong><small>${base.monthGeneralTerm}後近似月將</small>
+    </div>
+    <div class="calendar-row">
+      <span>旬空</span><strong>${base.xunKong.join(" / ")}</strong><small>依日干支所在旬推得</small>
+    </div>`;
+  els.calendarNote.textContent = "這是完整版大六壬的第一層地基：先定時間、干支、月將、占時、旬空。下一階段可用它正式推出天地盤與四課。";
+}
+
 function renderReading(reading, options = {}) {
   const firstPass = reading.passes[0];
   const lastPass = reading.passes[2];
@@ -660,16 +830,21 @@ function renderReading(reading, options = {}) {
   renderList(els.fourLessons, reading.lessons, "lesson-item", "lesson");
   renderList(els.threePasses, reading.passes, "pass-item", "pass");
   attachDetailEvents();
+  renderCalendarBase(reading);
   renderIChing(reading);
   renderMeihua(reading);
 
   els.drawLog.textContent = [
     `問題：${reading.question}`,
     `類型：${reading.topicLabel}`,
+    `起課時間：${reading.calendarBase.localText}`,
+    `四柱：${reading.calendarBase.yearGanzhi} ${reading.calendarBase.monthGanzhi} ${reading.calendarBase.dayGanzhi} ${reading.calendarBase.hourGanzhi}`,
+    `月將：${reading.calendarBase.monthGeneral}（${reading.calendarBase.monthGeneralTerm}後近似）`,
+    `旬空：${reading.calendarBase.xunKong.join(", ")}`,
     `小六壬三數：${reading.smallDraws.join(", ")} -> ${reading.small.name}`,
     `易經六爻：${reading.iching.values.join(", ")} -> ${reading.iching.primary.name} / ${reading.iching.changed.name}`,
     `梅花三數：${reading.meihua.draws.join(", ")} -> ${reading.meihua.primary.name} / ${reading.meihua.changed.name}`,
-    `月將：${branches[reading.monthGeneralIndex]}`,
+    `布盤月將：${branches[reading.monthGeneralIndex]}`,
     `占時：${branches[reading.hourIndex]}`,
     `人元：${branches[reading.subjectIndex]}`,
     `事元：${branches[reading.matterIndex]}`,
@@ -695,6 +870,7 @@ async function castReading() {
   const question = els.questionInput.value.trim() || "未填問題";
   const topic = els.topicType.value;
   const topicLabel = els.topicType.options[els.topicType.selectedIndex].text;
+  const calendarBase = buildCalendarBase(getCastDate());
   const smallDraws = [await randomInt(1, 6), await randomInt(1, 6), await randomInt(1, 6)];
   const smallIndex = (smallDraws.reduce((sum, value) => sum + value, 0) - 1) % 6;
   const small = smallLiuren[smallIndex];
@@ -705,11 +881,12 @@ async function castReading() {
     question,
     topic,
     topicLabel,
+    calendarBase,
     smallDraws,
     smallIndex,
     small,
-    monthGeneralIndex: await randomInt(0, 11),
-    hourIndex: await randomInt(0, 11),
+    monthGeneralIndex: calendarBase.monthGeneralIndex,
+    hourIndex: calendarBase.hourBranchIndex,
     subjectIndex: await randomInt(0, 11),
     matterIndex: await randomInt(0, 11),
   });
@@ -731,6 +908,7 @@ async function castReading() {
   revealCard(5);
   revealCard(6);
   revealCard(7);
+  revealCard(8);
   revealCard(0);
   showDetail("branch", reading.focusIndex);
   await sleep(180);
@@ -774,6 +952,18 @@ els.clearHistory.addEventListener("click", () => {
   renderHistory();
 });
 
+function setDefaultCastDateTime() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  els.castDateTime.value = now.toISOString().slice(0, 16);
+}
+
+els.castMode.addEventListener("change", () => {
+  els.castDateTime.disabled = els.castMode.value !== "custom";
+});
+
+setDefaultCastDateTime();
+els.castDateTime.disabled = true;
 loadHistory();
 renderHistory();
 renderRitual(-1, "待命");
