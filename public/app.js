@@ -32,6 +32,14 @@ const els = {
   calendarBadge: document.querySelector("#calendarBadge"),
   calendarPanel: document.querySelector("#calendarPanel"),
   calendarNote: document.querySelector("#calendarNote"),
+  formalPlateBadge: document.querySelector("#formalPlateBadge"),
+  formalPlate: document.querySelector("#formalPlate"),
+  formalPlateNote: document.querySelector("#formalPlateNote"),
+  formalLessonsBadge: document.querySelector("#formalLessonsBadge"),
+  formalLessons: document.querySelector("#formalLessons"),
+  formalMethodBadge: document.querySelector("#formalMethodBadge"),
+  formalTransmissions: document.querySelector("#formalTransmissions"),
+  formalMethodNote: document.querySelector("#formalMethodNote"),
   fourLessons: document.querySelector("#fourLessons"),
   threePasses: document.querySelector("#threePasses"),
   selectionPanel: document.querySelector("#selectionPanel"),
@@ -67,6 +75,31 @@ const smallLiuren = [
 const branches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
 const stems = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
 const generals = ["貴人", "螣蛇", "朱雀", "六合", "勾陳", "青龍", "天空", "白虎", "太常", "玄武", "太陰", "天后"];
+const branchElement = {
+  子: "水", 丑: "土", 寅: "木", 卯: "木", 辰: "土", 巳: "火",
+  午: "火", 未: "土", 申: "金", 酉: "金", 戌: "土", 亥: "水",
+};
+const stemElement = {
+  甲: "木", 乙: "木", 丙: "火", 丁: "火", 戊: "土",
+  己: "土", 庚: "金", 辛: "金", 壬: "水", 癸: "水",
+};
+const controls = { 木: "土", 土: "水", 水: "火", 火: "金", 金: "木" };
+const stemLodge = {
+  甲: "寅", 乙: "辰", 丙: "巳", 丁: "未", 戊: "巳",
+  己: "未", 庚: "申", 辛: "戌", 壬: "亥", 癸: "丑",
+};
+const nobleByStem = {
+  甲: { day: "丑", night: "未" },
+  戊: { day: "丑", night: "未" },
+  庚: { day: "丑", night: "未" },
+  乙: { day: "子", night: "申" },
+  己: { day: "子", night: "申" },
+  丙: { day: "亥", night: "酉" },
+  丁: { day: "亥", night: "酉" },
+  壬: { day: "巳", night: "卯" },
+  癸: { day: "巳", night: "卯" },
+  辛: { day: "午", night: "寅" },
+};
 const passNames = ["初傳", "中傳", "末傳"];
 const lessonNames = ["一課", "二課", "三課", "四課"];
 const ritualLabels = ["靜心", "取數", "起小六壬", "布大盤", "成卦"];
@@ -465,6 +498,128 @@ function buildCalendarBase(date) {
   };
 }
 
+function elementControls(a, b) {
+  return controls[a] === b;
+}
+
+function branchDistance(from, to) {
+  return (branches.indexOf(to) - branches.indexOf(from) + 12) % 12;
+}
+
+function buildHeavenPlate(monthGeneralIndex, hourBranchIndex) {
+  return branches.map((earth, earthIndex) => ({
+    earth,
+    heaven: branches[(monthGeneralIndex + earthIndex - hourBranchIndex + 12) % 12],
+  }));
+}
+
+function heavenOver(heavenPlate, branch) {
+  return heavenPlate[branches.indexOf(branch)].heaven;
+}
+
+function buildSkyGenerals(calendarBase, heavenPlate) {
+  const dayPart = new Date(calendarBase.iso).getHours() >= 6 && new Date(calendarBase.iso).getHours() < 18 ? "day" : "night";
+  const nobleBranch = nobleByStem[calendarBase.dayStem][dayPart];
+  const nobleEarthIndex = heavenPlate.findIndex((item) => item.heaven === nobleBranch);
+  const forward = ["亥", "子", "丑", "寅", "卯", "辰"].includes(branches[nobleEarthIndex]);
+  const orderedGenerals = forward ? generals : [generals[0], ...generals.slice(1).reverse()];
+  const skyGenerals = {};
+  orderedGenerals.forEach((general, offset) => {
+    skyGenerals[branches[(nobleEarthIndex + offset) % 12]] = general;
+  });
+  return { skyGenerals, nobleBranch, forward, dayPart };
+}
+
+function buildFormalLessons(calendarBase, heavenPlate, skyGenerals) {
+  const dayStemLodge = stemLodge[calendarBase.dayStem];
+  const firstUpper = heavenOver(heavenPlate, dayStemLodge);
+  const secondUpper = heavenOver(heavenPlate, firstUpper);
+  const thirdUpper = heavenOver(heavenPlate, calendarBase.dayBranch);
+  const fourthUpper = heavenOver(heavenPlate, thirdUpper);
+  const raw = [
+    { label: "干陽", lower: dayStemLodge, upper: firstUpper, source: `${calendarBase.dayStem}寄${dayStemLodge}` },
+    { label: "干陰", lower: firstUpper, upper: secondUpper, source: "干陽上神再上" },
+    { label: "支陽", lower: calendarBase.dayBranch, upper: thirdUpper, source: `日支${calendarBase.dayBranch}` },
+    { label: "支陰", lower: thirdUpper, upper: fourthUpper, source: "支陽上神再上" },
+  ];
+  return raw.map((lesson) => {
+    const lowerElement = branchElement[lesson.lower];
+    const upperElement = branchElement[lesson.upper];
+    const relation = elementControls(lowerElement, upperElement)
+      ? "下賊上"
+      : elementControls(upperElement, lowerElement)
+        ? "上克下"
+        : "無克";
+    return {
+      ...lesson,
+      lowerElement,
+      upperElement,
+      relation,
+      general: skyGenerals[lesson.upper],
+    };
+  });
+}
+
+function uniqueBranches(items) {
+  return [...new Set(items)];
+}
+
+function chooseTransmissionStart(candidates, dayStem) {
+  if (candidates.length === 1) return candidates[0];
+  const dayStemElement = stemElement[dayStem];
+  const sameElement = candidates.find((item) => branchElement[item.upper] === dayStemElement);
+  if (sameElement) return { ...sameElement, selector: "比用" };
+  return { ...candidates.sort((a, b) => branchDistance(a.lower, a.upper) - branchDistance(b.lower, b.upper))[0], selector: "涉害近取" };
+}
+
+function buildFormalTransmissions(calendarBase, heavenPlate, formalLessons) {
+  const thief = formalLessons.filter((item) => item.relation === "下賊上");
+  const overcome = formalLessons.filter((item) => item.relation === "上克下");
+  const remote = formalLessons.filter((item) => item.upper !== calendarBase.dayBranch && item.upper !== stemLodge[calendarBase.dayStem]);
+  let method = "賊克";
+  let note = "先取下賊上；無賊則取上克下。多課同動時用比用、涉害作近似裁定。";
+  let startLesson = null;
+
+  if (thief.length || overcome.length) {
+    startLesson = chooseTransmissionStart(thief.length ? thief : overcome, calendarBase.dayStem);
+    method = startLesson.selector || "賊克";
+  } else if (remote.length) {
+    startLesson = remote[0];
+    method = "遙克";
+    note = "四課無直接克，暫以遙克取發用。";
+  } else if (calendarBase.dayBranch === heavenOver(heavenPlate, calendarBase.dayBranch)) {
+    startLesson = formalLessons[2];
+    method = "伏吟";
+    note = "支上見本支，按伏吟骨架取傳。";
+  } else {
+    startLesson = formalLessons[0];
+    method = "昴星";
+    note = "無克無遙時，以昴星骨架取傳。";
+  }
+
+  const first = startLesson.upper;
+  const second = heavenOver(heavenPlate, first);
+  const third = heavenOver(heavenPlate, second);
+  return {
+    method,
+    note,
+    transmissions: [
+      { label: "初傳", branch: first, general: startLesson.general, source: startLesson.label },
+      { label: "中傳", branch: second, general: formalLessons.find((item) => item.upper === second)?.general || "" },
+      { label: "末傳", branch: third, general: formalLessons.find((item) => item.upper === third)?.general || "" },
+    ],
+    activeRelations: uniqueBranches([...thief, ...overcome].map((item) => item.upper)),
+  };
+}
+
+function buildFormalLiuRen(calendarBase) {
+  const heavenPlate = buildHeavenPlate(calendarBase.monthGeneralIndex, calendarBase.hourBranchIndex);
+  const skyGeneralData = buildSkyGenerals(calendarBase, heavenPlate);
+  const lessons = buildFormalLessons(calendarBase, heavenPlate, skyGeneralData.skyGenerals);
+  const transmissions = buildFormalTransmissions(calendarBase, heavenPlate, lessons);
+  return { heavenPlate, skyGeneralData, lessons, transmissions };
+}
+
 function pickText(score, small, firstPass, lastPass) {
   if (score >= 4) return `卦象偏吉，${small.name}得勢，${firstPass.branch}起、${lastPass.branch}收，事情有推進空間。`;
   if (score >= 1) return `卦象可行但需修整，${small.name}給出方向，先處理「${firstPass.keyword}」再求結果。`;
@@ -804,6 +959,51 @@ function renderCalendarBase(reading) {
   els.calendarNote.textContent = "這是完整版大六壬的第一層地基：先定時間、干支、月將、占時、旬空。下一階段可用它正式推出天地盤與四課。";
 }
 
+function renderFormalLiuRen(reading) {
+  const formal = reading.formalLiuRen;
+  if (!formal) {
+    els.formalPlateBadge.textContent = "舊紀錄";
+    els.formalPlate.innerHTML = "";
+    els.formalPlateNote.textContent = "這筆紀錄建立於正式大六壬引擎之前，請重新起課生成正式天地盤、四課與三傳。";
+    els.formalLessonsBadge.textContent = "無資料";
+    els.formalLessons.innerHTML = "";
+    els.formalMethodBadge.textContent = "無資料";
+    els.formalTransmissions.innerHTML = "";
+    els.formalMethodNote.textContent = "重新起課即可補齊正式三傳。";
+    return;
+  }
+  els.formalPlateBadge.textContent = `月將${reading.calendarBase.monthGeneral}加${reading.calendarBase.hourBranch}時`;
+  els.formalPlate.innerHTML = formal.heavenPlate
+    .map((item) => `<div class="formal-cell">
+      <span>${item.earth}</span>
+      <strong>${item.heaven}</strong>
+      <small>${formal.skyGeneralData.skyGenerals[item.earth] || ""}</small>
+    </div>`)
+    .join("");
+  els.formalPlateNote.textContent = `貴人取 ${formal.skyGeneralData.nobleBranch}，${formal.skyGeneralData.dayPart === "day" ? "晝貴" : "夜貴"}，${formal.skyGeneralData.forward ? "順布" : "逆布"}十二天將。`;
+
+  els.formalLessonsBadge.textContent = `${reading.calendarBase.dayStem}日寄${stemLodge[reading.calendarBase.dayStem]}`;
+  els.formalLessons.innerHTML = formal.lessons
+    .map((item) => `<div class="formal-item">
+      <span>${item.label}</span>
+      <strong>${item.lower} → ${item.upper}</strong>
+      <em>${item.relation}</em>
+      <small>${item.general || "無天將"} · ${item.source}</small>
+    </div>`)
+    .join("");
+
+  els.formalMethodBadge.textContent = formal.transmissions.method;
+  els.formalTransmissions.innerHTML = formal.transmissions.transmissions
+    .map((item) => `<div class="formal-item">
+      <span>${item.label}</span>
+      <strong>${item.branch}</strong>
+      <em>${item.general || "天將旁取"}</em>
+      <small>${item.source ? `發用：${item.source}` : "由上神遞傳"}</small>
+    </div>`)
+    .join("");
+  els.formalMethodNote.textContent = formal.transmissions.note;
+}
+
 function renderReading(reading, options = {}) {
   const firstPass = reading.passes[0];
   const lastPass = reading.passes[2];
@@ -831,6 +1031,7 @@ function renderReading(reading, options = {}) {
   renderList(els.threePasses, reading.passes, "pass-item", "pass");
   attachDetailEvents();
   renderCalendarBase(reading);
+  renderFormalLiuRen(reading);
   renderIChing(reading);
   renderMeihua(reading);
 
@@ -890,26 +1091,30 @@ async function castReading() {
     subjectIndex: await randomInt(0, 11),
     matterIndex: await randomInt(0, 11),
   });
+  reading.formalLiuRen = buildFormalLiuRen(calendarBase);
   reading.iching = await buildIChing();
   reading.meihua = await buildMeihua();
 
   state.latestReading = reading;
   renderReading(reading);
+  revealCard(0);
   revealCard(1);
+  revealCard(2);
+  revealCard(3);
   await sleep(260);
 
   renderRitual(3, "布大六壬盤");
-  revealCard(2);
-  await sleep(260);
-
-  renderRitual(4, "成卦");
-  revealCard(3);
   revealCard(4);
   revealCard(5);
   revealCard(6);
+  await sleep(260);
+
+  renderRitual(4, "成卦");
   revealCard(7);
   revealCard(8);
-  revealCard(0);
+  revealCard(9);
+  revealCard(10);
+  revealCard(11);
   showDetail("branch", reading.focusIndex);
   await sleep(180);
 

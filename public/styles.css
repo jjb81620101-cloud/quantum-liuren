@@ -298,6 +298,13 @@ input:disabled {
   margin-bottom: 16px;
 }
 
+.formal-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.95fr 0.95fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
 .card,
 .data-section,
 .notes {
@@ -611,6 +618,64 @@ input:disabled {
   line-height: 1.35;
 }
 
+.formal-plate {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0;
+}
+
+.formal-cell,
+.formal-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffaf2;
+}
+
+.formal-cell {
+  min-height: 78px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 10px;
+}
+
+.formal-cell span,
+.formal-cell small,
+.formal-item span,
+.formal-item small {
+  color: var(--muted);
+  font-family: "Segoe UI", sans-serif;
+}
+
+.formal-cell strong {
+  color: var(--accent);
+  font-size: 1.28rem;
+}
+
+.formal-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.formal-item {
+  display: grid;
+  grid-template-columns: 54px 1fr 70px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+}
+
+.formal-item strong {
+  color: var(--accent);
+}
+
+.formal-item em {
+  font-style: normal;
+  font-weight: 800;
+}
+
 .result-actions {
   display: flex;
   flex-wrap: wrap;
@@ -712,6 +777,7 @@ pre {
   .hero,
   .reading-grid,
   .details-grid,
+  .formal-grid,
   .classic-grid,
   .calendar-panel,
   .history-list,
