@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>量子六壬問事</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Quantum Liu Ren</p>
+          <h1>量子六壬問事</h1>
+          <p class="lede">
+            寫下你想問的事，按下起課。網站會取硬體量子隨機數，生成小六壬六神與一個大六壬風格盤，再給你一份可讀的卜卦解讀。
+          </p>
+        </div>
+        <div class="source-panel">
+          <span id="sourceDot" class="dot"></span>
+          <div>
+            <strong id="sourceName">尚未取樣</strong>
+            <small id="sourceMeta">按下「量子起課」開始</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="question-panel">
+        <label for="questionInput">你想問什麼事？</label>
+        <textarea id="questionInput" rows="4" placeholder="例如：這個合作案是否適合推進？"></textarea>
+        <div class="question-actions">
+          <label class="select-label" for="topicType">
+            問事類型
+            <select id="topicType">
+              <option value="general">綜合</option>
+              <option value="work">事業 / 合作</option>
+              <option value="money">財務 / 投資</option>
+              <option value="relationship">感情 / 人際</option>
+              <option value="travel">出行 / 搬動</option>
+              <option value="health">身心狀態</option>
+            </select>
+          </label>
+          <button id="castReading">量子起課</button>
+        </div>
+        <div class="ritual-panel">
+          <div class="ritual-head">
+            <h2>起課流程</h2>
+            <span id="ritualState" class="badge">待命</span>
+          </div>
+          <div id="ritualSteps" class="ritual-steps"></div>
+        </div>
+      </section>
+
+      <section class="reading-grid">
+        <article id="mainCard" class="card main-card reveal-card">
+          <div class="card-head">
+            <h2>總斷</h2>
+            <span id="verdictBadge" class="badge">未起課</span>
+          </div>
+          <div id="mainVerdict" class="verdict">請先寫下問題，按下量子起課。</div>
+          <p id="adviceText" class="advice">結果會用「可行、阻滯、宜緩、宜動」等語氣呈現，適合拿來幫你整理直覺，不取代現實判斷。</p>
+          <div class="result-actions">
+            <button id="copyReading" type="button" disabled>複製卦文</button>
+            <button id="clearHistory" class="ghost-button" type="button">清空紀錄</button>
+          </div>
+        </article>
+
+        <article id="smallCard" class="card reveal-card">
+          <div class="card-head">
+            <h2>小六壬</h2>
+            <span id="smallStep" class="badge">-</span>
+          </div>
+          <div id="smallPalace" class="palace-name">-</div>
+          <p id="smallMeaning" class="card-copy">以量子三數起六神：初象、事勢、收束。</p>
+          <div id="smallTrail" class="trail"></div>
+        </article>
+
+        <article id="bigCard" class="card reveal-card">
+          <div class="card-head">
+            <h2>大六壬風格盤</h2>
+            <span id="bigFocus" class="badge">-</span>
+          </div>
+          <div id="branchWheel" class="branch-wheel"></div>
+          <p id="bigMeaning" class="card-copy">此為實驗盤：以十二支、十二天將、四課三傳的結構做量子化抽取。</p>
+        </article>
+      </section>
+
+      <section class="details-grid">
+        <article id="lessonsCard" class="card reveal-card">
+          <h2>四課</h2>
+          <div id="fourLessons" class="lesson-list"></div>
+        </article>
+        <article id="passesCard" class="card reveal-card">
+          <h2>三傳</h2>
+          <div id="threePasses" class="pass-list"></div>
+        </article>
+        <article id="insightCard" class="card reveal-card">
+          <h2>盤位細節</h2>
+          <div id="selectionPanel" class="selection-panel">
+            點一下十二支盤、四課或三傳，這裡會展開那個位置的說明。
+          </div>
+          <h2 class="subheading">取數</h2>
+          <pre id="drawLog">尚未起課</pre>
+        </article>
+      </section>
+
+      <section class="history-section">
+        <div class="card-head">
+          <h2>問事紀錄</h2>
+          <span id="historyCount" class="badge">0 筆</span>
+        </div>
+        <div id="historyList" class="history-list">
+          <p class="empty-note">起課後會自動保留最近五筆，方便回看與比較。</p>
+        </div>
+      </section>
+
+      <section class="data-section">
+        <div class="card-head">
+          <h2>原始量子資料</h2>
+          <button id="refreshBytes">重新取 64 bytes</button>
+        </div>
+        <div class="byte-layout">
+          <div>
+            <h3>Hex bytes</h3>
+            <pre id="hexOutput">尚未取樣</pre>
+          </div>
+          <div>
+            <h3>Bits</h3>
+            <pre id="bitsOutput">尚未取樣</pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="notes">
+        <h2>關於這個版本</h2>
+        <p>
+          小六壬採「大安、留連、速喜、赤口、小吉、空亡」六位循環，這裡用量子三數代替傳統月日時或報數。大六壬部分是受十二支、天將、四課三傳啟發的實驗盤，還不是完整傳統排盤。占卜內容只適合自我整理與娛樂，重大醫療、法律、投資與人身安全決策請以專業意見為準。
+        </p>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

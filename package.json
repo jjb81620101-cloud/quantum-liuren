@@ -1,0 +1,17 @@
+{
+  "name": "quantum-liuren",
+  "version": "1.0.0",
+  "description": "A quantum random Liu Ren divination experiment website.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "quantum",
+    "random",
+    "qrng",
+    "liuren",
+    "divination"
+  ],
+  "license": "MIT"
+}
