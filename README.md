@@ -40,6 +40,21 @@ $env:PORT=3000; npm start
 
 This app also works as a static site on GitHub Pages. The browser tries the public QRNG APIs directly, then falls back to `crypto.getRandomValues` if those APIs are unavailable.
 
+## Case Comparison
+
+The audit panel can compare a cast against an expected Liu Ren case. Paste JSON such as:
+
+```json
+{
+  "monthGeneral": "未",
+  "hourBranch": "巳",
+  "method": "賊克",
+  "transmissions": ["申", "亥", "寅"]
+}
+```
+
+Supported comparison keys are `monthGeneral`, `hourBranch`, `dayGanzhi`, `xunKong`, `method`, `transmissions`, and `lessons`.
+
 ## Random Sources
 
 The server tries these sources in order:

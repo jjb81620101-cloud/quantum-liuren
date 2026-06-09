@@ -42,7 +42,10 @@ const els = {
   formalMethodNote: document.querySelector("#formalMethodNote"),
   auditBadge: document.querySelector("#auditBadge"),
   copyAuditJson: document.querySelector("#copyAuditJson"),
+  compareAudit: document.querySelector("#compareAudit"),
   auditExample: document.querySelector("#auditExample"),
+  expectedCaseInput: document.querySelector("#expectedCaseInput"),
+  compareResult: document.querySelector("#compareResult"),
   auditOutput: document.querySelector("#auditOutput"),
   fourLessons: document.querySelector("#fourLessons"),
   threePasses: document.querySelector("#threePasses"),
@@ -64,7 +67,7 @@ const els = {
   revealCards: [...document.querySelectorAll(".reveal-card")],
 };
 
-const loadingButtons = [...document.querySelectorAll("button:not(#copyReading):not(#clearHistory):not(#copyAuditJson)")];
+const loadingButtons = [...document.querySelectorAll("button:not(#copyReading):not(#clearHistory):not(#copyAuditJson):not(#compareAudit)")];
 const historyKey = "quantum-liuren-history-v1";
 
 const smallLiuren = [
@@ -1147,11 +1150,62 @@ function buildAuditJson(reading) {
   };
 }
 
+function normalizeExpectedArray(value) {
+  if (!value) return null;
+  if (Array.isArray(value)) return value;
+  return String(value).split(/[,\s/]+/).filter(Boolean);
+}
+
+function compareValue(label, actual, expected) {
+  const pass = JSON.stringify(actual) === JSON.stringify(expected);
+  return { label, actual, expected, pass };
+}
+
+function buildComparableReading(reading) {
+  return {
+    monthGeneral: reading.calendarBase.monthGeneral,
+    hourBranch: reading.calendarBase.hourBranch,
+    dayGanzhi: reading.calendarBase.dayGanzhi,
+    xunKong: reading.calendarBase.xunKong,
+    method: reading.formalLiuRen?.transmissions?.method || "",
+    transmissions: reading.formalLiuRen?.transmissions?.transmissions.map((item) => item.branch) || [],
+    lessons: reading.formalLiuRen?.lessons.map((item) => `${item.lower}->${item.upper}`) || [],
+  };
+}
+
+function compareExpectedCase(reading, expected) {
+  const actual = buildComparableReading(reading);
+  const checks = [];
+  if (expected.monthGeneral) checks.push(compareValue("月將", actual.monthGeneral, expected.monthGeneral));
+  if (expected.hourBranch) checks.push(compareValue("占時", actual.hourBranch, expected.hourBranch));
+  if (expected.dayGanzhi) checks.push(compareValue("日干支", actual.dayGanzhi, expected.dayGanzhi));
+  if (expected.xunKong) checks.push(compareValue("旬空", actual.xunKong, normalizeExpectedArray(expected.xunKong)));
+  if (expected.method) checks.push(compareValue("取法", actual.method, expected.method));
+  if (expected.transmissions) checks.push(compareValue("三傳", actual.transmissions, normalizeExpectedArray(expected.transmissions)));
+  if (expected.lessons) checks.push(compareValue("四課", actual.lessons, normalizeExpectedArray(expected.lessons)));
+  return { actual, checks };
+}
+
+function renderCompareResult(result) {
+  if (!result.checks.length) {
+    els.compareResult.innerHTML = '<p class="empty-note">期望 JSON 沒有可比對欄位。可填 monthGeneral、hourBranch、dayGanzhi、xunKong、method、transmissions、lessons。</p>';
+    return;
+  }
+  els.compareResult.innerHTML = result.checks
+    .map((item) => `<div class="compare-row ${item.pass ? "pass" : "fail"}">
+      <span>${item.pass ? "PASS" : "FAIL"}</span>
+      <strong>${item.label}</strong>
+      <small>實際：${escapeHtml(Array.isArray(item.actual) ? item.actual.join(" / ") : item.actual)} ｜ 期望：${escapeHtml(Array.isArray(item.expected) ? item.expected.join(" / ") : item.expected)}</small>
+    </div>`)
+    .join("");
+}
+
 function renderAudit(reading) {
   const audit = buildAuditJson(reading);
   els.auditBadge.textContent = reading.formalLiuRen?.transmissions?.method || "已起課";
   els.auditOutput.textContent = JSON.stringify(audit, null, 2);
   els.copyAuditJson.disabled = false;
+  els.compareAudit.disabled = false;
 }
 
 function renderReading(reading, options = {}) {
@@ -1315,6 +1369,22 @@ els.copyAuditJson.addEventListener("click", async () => {
   setTimeout(() => {
     els.copyAuditJson.textContent = "複製 JSON";
   }, 1300);
+});
+
+els.compareAudit.addEventListener("click", () => {
+  if (!state.latestReading) return;
+  const rawExpected = els.expectedCaseInput.value.trim();
+  if (!rawExpected) {
+    els.compareResult.innerHTML = '<p class="empty-note">請先貼上期望課例 JSON，再按「比對課例」。</p>';
+    return;
+  }
+
+  try {
+    const expected = JSON.parse(rawExpected);
+    renderCompareResult(compareExpectedCase(state.latestReading, expected));
+  } catch (error) {
+    els.compareResult.innerHTML = `<p class="empty-note">JSON 解析失敗：${escapeHtml(error.message)}</p>`;
+  }
 });
 
 els.auditExample.addEventListener("change", () => {

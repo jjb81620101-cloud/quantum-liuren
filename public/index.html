@@ -112,6 +112,7 @@
           </div>
           <div class="audit-actions">
             <button id="copyAuditJson" type="button" disabled>複製 JSON</button>
+            <button id="compareAudit" class="ghost-button" type="button" disabled>比對課例</button>
             <label class="select-label" for="auditExample">
               範例時間
               <select id="auditExample">
@@ -121,6 +122,13 @@
                 <option value="2027-02-04T08:00">2027-02-04 08:00</option>
               </select>
             </label>
+          </div>
+          <label class="select-label" for="expectedCaseInput">
+            貼上期望課例 JSON
+            <textarea id="expectedCaseInput" rows="5" placeholder='例如：{"monthGeneral":"未","hourBranch":"巳","method":"賊克","transmissions":["申","亥","寅"]}'></textarea>
+          </label>
+          <div id="compareResult" class="compare-result">
+            貼入期望值後按「比對課例」，可逐項校驗月將、占時、四課、三傳與取法。
           </div>
           <pre id="auditOutput">起課後會顯示可複查的正式大六壬排盤 JSON。</pre>
         </article>
