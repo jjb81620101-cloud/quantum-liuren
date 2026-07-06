@@ -43,19 +43,27 @@ function isHex(value, expectedBytes) {
   );
 }
 
+function isByteArray(value, expectedLength) {
+  return (
+    Array.isArray(value) &&
+    value.length === expectedLength &&
+    value.every((entry) => Number.isInteger(entry) && entry >= 0 && entry <= 255)
+  );
+}
+
 async function getQuantumBytes(byteCount) {
-  const primaryUrl = `https://quantum.docdailey.ai/random/bytes?count=${byteCount}`;
+  const primaryUrl = `https://qrng.anu.edu.au/API/jsonI.php?length=${byteCount}&type=uint8`;
   const secondaryUrl = `https://lfdr.de/qrng_api/qrng?length=${byteCount}`;
 
   try {
     const json = await requestJson(primaryUrl);
-    const hex = json && json.data && json.data.bytes;
-    if (isHex(hex, byteCount)) {
+    if (json && json.success === true && isByteArray(json.data, byteCount)) {
+      const hex = json.data.map((byte) => byte.toString(16).padStart(2, "0")).join("");
       return {
-        bytes: hex.toLowerCase(),
-        source: "DocDailey hardware QRNG",
+        bytes: hex,
+        source: "ANU hardware QRNG",
         quantum: true,
-        metadata: json.metadata || null,
+        metadata: { type: json.type, length: json.length },
       };
     }
     throw new Error("Unexpected primary response shape");

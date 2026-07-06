@@ -38,7 +38,7 @@ $env:PORT=3000; npm start
 
 ## Run Online
 
-This app also works as a static site on GitHub Pages. The browser tries the public QRNG APIs directly, then falls back to `crypto.getRandomValues` if those APIs are unavailable.
+This app also works as a static site on GitHub Pages. The static site calls the ANU hardware QRNG API directly from the browser (it sends CORS headers that allow this). If that call fails or is rate-limited, the UI falls back to `crypto.getRandomValues` and honestly labels the sample as the local fallback instead of a quantum source.
 
 ## Case Comparison
 
@@ -57,13 +57,13 @@ Supported comparison keys are `monthGeneral`, `hourBranch`, `dayGanzhi`, `xunKon
 
 ## Random Sources
 
-The server tries these sources in order:
+1. **ANU hardware QRNG API** — primary source. Browser-direct online (its CORS headers are open, so GitHub Pages can call it directly); also used first by the local server.
+2. **LfD hardware QRNG API** — secondary source, local server mode only. Its CORS headers block browser calls, so it only works when the Node server fetches it on your behalf.
+3. **Local crypto fallback** (`crypto.randomBytes` on the server, `crypto.getRandomValues` in the browser) — used if both hardware sources fail.
 
-1. DocDailey hardware QRNG API
-2. LfD hardware QRNG API
-3. Local `crypto.randomBytes` fallback
+The previous primary source has moved behind a Cloudflare Access login wall and is no longer reachable, so it has been removed from the source chain.
 
-The UI shows whether the current sample came from a quantum source or the local fallback.
+The UI shows whether the current sample came from a quantum source or the local fallback. Note that the free ANU endpoint is rate-limited to 1 request per minute per IP, so casting again within a minute falls back to the local crypto source (and is labeled as such).
 
 ## Notes
 
