@@ -865,7 +865,7 @@ pre {
   }
 }
 
-@media (max-width: 620px) {
+@media (max-width: 740px) {
   .shell {
     width: min(100% - 20px, 1120px);
     padding-top: 16px;

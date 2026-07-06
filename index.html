@@ -3,6 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="輸入想問的事，以硬體量子隨機數起小六壬、大六壬盤、六爻與梅花易數，並附白話解讀。" />
+    <meta property="og:title" content="量子六壬問事" />
+    <meta property="og:description" content="輸入想問的事，以硬體量子隨機數起小六壬、大六壬盤、六爻與梅花易數，並附白話解讀。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://jjb81620101-cloud.github.io/quantum-liuren/" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔮</text></svg>" />
     <title>量子六壬問事</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -51,7 +57,7 @@
             指定日期時間
             <input id="castDateTime" type="datetime-local" />
           </label>
-          <button id="castReading">量子起課</button>
+          <button id="castReading" type="button">量子起課</button>
         </div>
         <div class="ritual-panel">
           <div class="ritual-head">
@@ -135,7 +141,7 @@
       </section>
 
       <section class="reading-grid">
-        <article id="mainCard" class="card main-card reveal-card">
+        <article id="mainCard" class="card reveal-card">
           <div class="card-head">
             <h2>總斷</h2>
             <span id="verdictBadge" class="badge">未起課</span>
@@ -236,7 +242,7 @@
       <section class="data-section">
         <div class="card-head">
           <h2>原始量子資料</h2>
-          <button id="refreshBytes">重新取 64 bytes</button>
+          <button id="refreshBytes" type="button">重新取 64 bytes</button>
         </div>
         <div class="byte-layout">
           <div>

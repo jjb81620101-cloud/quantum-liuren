@@ -2,6 +2,8 @@ const state = {
   bytes: new Uint8Array(),
   cursor: 0,
   loading: false,
+  casting: false,
+  refreshing: false,
   latestReading: null,
   selectedDetail: null,
   history: [],
@@ -252,26 +254,29 @@ function parseRandomPayload(payload, byteCount) {
   if (payload && payload.bytes && payload.bytes.length === byteCount * 2) {
     return { bytes: payload.bytes, source: payload.source || "Local API", quantum: Boolean(payload.quantum) };
   }
-  if (payload && payload.data && payload.data.bytes && payload.data.bytes.length === byteCount * 2) {
-    return { bytes: payload.data.bytes, source: "DocDailey hardware QRNG", quantum: true };
-  }
-  if (payload && payload.qrn && payload.qrn.length === byteCount * 2) {
-    return { bytes: payload.qrn, source: "LfD hardware QRNG", quantum: true };
+  if (payload && payload.success === true && Array.isArray(payload.data) && payload.data.length === byteCount) {
+    const hex = payload.data.map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    return { bytes: hex, source: "ANU hardware QRNG", quantum: true };
   }
   throw new Error("Unexpected random source response");
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return response.json();
+async function fetchJson(url, timeoutMs = 7000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function getRandomPayload(byteCount) {
   const sources = [
     `api/random?bytes=${byteCount}`,
-    `https://quantum.docdailey.ai/random/bytes?count=${byteCount}`,
-    `https://lfdr.de/qrng_api/qrng?length=${byteCount}`,
+    `https://qrng.anu.edu.au/API/jsonI.php?length=${byteCount}&type=uint8`,
   ];
 
   for (const source of sources) {
@@ -314,26 +319,21 @@ function renderRitual(stepIndex = -1, label = "待命") {
 }
 
 async function fetchBytes(count = 96) {
-  setLoading(true);
-  try {
-    const payload = await getRandomPayload(count);
-    const bytes = hexToBytes(payload.bytes);
+  const payload = await getRandomPayload(count);
+  const bytes = hexToBytes(payload.bytes);
 
-    state.bytes = bytes;
-    state.cursor = 0;
+  state.bytes = bytes;
+  state.cursor = 0;
 
-    els.hexOutput.textContent = formatHex(payload.bytes);
-    els.bitsOutput.textContent = bytesToBits(bytes);
-    els.sourceName.textContent = payload.source;
-    els.sourceMeta.textContent = payload.quantum
-      ? `量子來源，${bytes.length} bytes`
-      : "API 無法使用，已切到本機加密隨機數";
-    els.sourceDot.classList.toggle("quantum", Boolean(payload.quantum));
+  els.hexOutput.textContent = formatHex(payload.bytes);
+  els.bitsOutput.textContent = bytesToBits(bytes);
+  els.sourceName.textContent = payload.source;
+  els.sourceMeta.textContent = payload.quantum
+    ? `量子來源，${bytes.length} bytes`
+    : "API 無法使用，已切到本機加密隨機數";
+  els.sourceDot.classList.toggle("quantum", Boolean(payload.quantum));
 
-    return bytes;
-  } finally {
-    setLoading(false);
-  }
+  return bytes;
 }
 
 async function ensureBytes(needed) {
@@ -570,54 +570,6 @@ function buildFormalLessons(calendarBase, heavenPlate, skyGenerals) {
 
 function uniqueBranches(items) {
   return [...new Set(items)];
-}
-
-function chooseTransmissionStart(candidates, dayStem) {
-  if (candidates.length === 1) return candidates[0];
-  const dayStemElement = stemElement[dayStem];
-  const sameElement = candidates.find((item) => branchElement[item.upper] === dayStemElement);
-  if (sameElement) return { ...sameElement, selector: "比用" };
-  return { ...candidates.sort((a, b) => branchDistance(a.lower, a.upper) - branchDistance(b.lower, b.upper))[0], selector: "涉害近取" };
-}
-
-function buildFormalTransmissions(calendarBase, heavenPlate, formalLessons) {
-  const thief = formalLessons.filter((item) => item.relation === "下賊上");
-  const overcome = formalLessons.filter((item) => item.relation === "上克下");
-  const remote = formalLessons.filter((item) => item.upper !== calendarBase.dayBranch && item.upper !== stemLodge[calendarBase.dayStem]);
-  let method = "賊克";
-  let note = "先取下賊上；無賊則取上克下。多課同動時用比用、涉害作近似裁定。";
-  let startLesson = null;
-
-  if (thief.length || overcome.length) {
-    startLesson = chooseTransmissionStart(thief.length ? thief : overcome, calendarBase.dayStem);
-    method = startLesson.selector || "賊克";
-  } else if (remote.length) {
-    startLesson = remote[0];
-    method = "遙克";
-    note = "四課無直接克，暫以遙克取發用。";
-  } else if (calendarBase.dayBranch === heavenOver(heavenPlate, calendarBase.dayBranch)) {
-    startLesson = formalLessons[2];
-    method = "伏吟";
-    note = "支上見本支，按伏吟骨架取傳。";
-  } else {
-    startLesson = formalLessons[0];
-    method = "昴星";
-    note = "無克無遙時，以昴星骨架取傳。";
-  }
-
-  const first = startLesson.upper;
-  const second = heavenOver(heavenPlate, first);
-  const third = heavenOver(heavenPlate, second);
-  return {
-    method,
-    note,
-    transmissions: [
-      { label: "初傳", branch: first, general: startLesson.general, source: startLesson.label },
-      { label: "中傳", branch: second, general: formalLessons.find((item) => item.upper === second)?.general || "" },
-      { label: "末傳", branch: third, general: formalLessons.find((item) => item.upper === third)?.general || "" },
-    ],
-    activeRelations: uniqueBranches([...thief, ...overcome].map((item) => item.upper)),
-  };
 }
 
 function lessonRelationKind(lesson) {
@@ -947,7 +899,7 @@ async function buildIChing() {
   const moving = [];
 
   for (let index = 0; index < 6; index += 1) {
-    const value = await randomInt(6, 9);
+    const value = 6 + (await randomInt(0, 1)) + (await randomInt(0, 1)) + (await randomInt(0, 1));
     values.push(value);
     lines.push(value === 7 || value === 9 ? 1 : 0);
     if (value === 6 || value === 9) moving.push(index + 1);
@@ -964,10 +916,13 @@ async function buildIChing() {
 }
 
 async function buildMeihua() {
-  const draws = [await randomInt(1, 999), await randomInt(1, 999), await randomInt(1, 999)];
-  const upper = trigramOrder[(draws[0] - 1) % 8];
-  const lower = trigramOrder[(draws[1] - 1) % 8];
-  const movingLine = ((draws[2] - 1) % 6) + 1;
+  const upperDraw = await randomInt(1, 8);
+  const lowerDraw = await randomInt(1, 8);
+  const movingDraw = await randomInt(1, 6);
+  const draws = [upperDraw, lowerDraw, movingDraw];
+  const upper = trigramOrder[upperDraw - 1];
+  const lower = trigramOrder[lowerDraw - 1];
+  const movingLine = movingDraw;
   const primaryLines = [...trigrams[lower].lines, ...trigrams[upper].lines];
   const changedLines = primaryLines.map((line, index) => (index + 1 === movingLine ? 1 - line : line));
 
@@ -988,13 +943,22 @@ function verdictLabel(score) {
 }
 
 function formatReadingText(reading) {
+  const hasIChing = Boolean(reading.iching && reading.iching.primary && reading.iching.changed);
+  const hasMeihua = Boolean(reading.meihua && reading.meihua.primary && reading.meihua.changed);
+  const ichingText = hasIChing
+    ? `${reading.iching.primary.name} -> ${reading.iching.changed.name}（動爻：${reading.iching.moving && reading.iching.moving.length ? reading.iching.moving.join(", ") : "無"}）`
+    : "—";
+  const meihuaText = hasMeihua
+    ? `${reading.meihua.upper}上${reading.meihua.lower}下，動${reading.meihua.movingLine}爻，${reading.meihua.primary.name} -> ${reading.meihua.changed.name}`
+    : "—";
+  const plainSummaryText = reading.plainSummary || (hasIChing && hasMeihua && reading.passes ? buildPlainSummary(reading) : "—");
   return [
     "量子六壬問事",
     `問題：${reading.question}`,
     `類型：${reading.topicLabel}`,
     `總斷：${reading.verdictText}`,
     `建議：${reading.adviceText}`,
-    `白話總結：${reading.plainSummary || buildPlainSummary(reading)}`,
+    `白話總結：${plainSummaryText}`,
     `起課時間：${reading.calendarBase ? reading.calendarBase.localText : "未記錄"}`,
     `四柱：${reading.calendarBase ? `${reading.calendarBase.yearGanzhi} ${reading.calendarBase.monthGanzhi} ${reading.calendarBase.dayGanzhi} ${reading.calendarBase.hourGanzhi}` : "未記錄"}`,
     `月將 / 占時 / 旬空：${reading.calendarBase ? `${reading.calendarBase.monthGeneral} / ${reading.calendarBase.hourBranch} / ${reading.calendarBase.xunKong.join(", ")}` : "未記錄"}`,
@@ -1002,8 +966,8 @@ function formatReadingText(reading) {
     `月將：${branches[reading.monthGeneralIndex]}，占時：${branches[reading.hourIndex]}，焦點：${branches[reading.focusIndex]}宮`,
     `四課：${reading.lessons.map((item) => `${item.label}${item.branch}${item.general}`).join(" / ")}`,
     `三傳：${reading.passes.map((item) => `${item.label}${item.branch}${item.general}`).join(" / ")}`,
-    `易經：${reading.iching.primary.name} -> ${reading.iching.changed.name}（動爻：${reading.iching.moving.length ? reading.iching.moving.join(", ") : "無"}）`,
-    `梅花：${reading.meihua.upper}上${reading.meihua.lower}下，動${reading.meihua.movingLine}爻，${reading.meihua.primary.name} -> ${reading.meihua.changed.name}`,
+    `易經：${ichingText}`,
+    `梅花：${meihuaText}`,
     `分數：${reading.score}`,
   ].join("\n");
 }
@@ -1069,6 +1033,15 @@ function renderHexagram(target, lines, moving = []) {
 
 function renderIChing(reading) {
   const { iching } = reading;
+  if (!iching || !iching.primary || !iching.changed || !Array.isArray(iching.lines) || !Array.isArray(iching.moving)) {
+    els.ichingBadge.textContent = "舊紀錄";
+    els.primaryHexName.textContent = "（舊紀錄，無此資料）";
+    els.changedHexName.textContent = "（舊紀錄，無此資料）";
+    renderHexagram(els.primaryHexagram, []);
+    renderHexagram(els.changedHexagram, []);
+    els.ichingMeaning.textContent = "這筆紀錄建立於易經六爻功能之前，沒有可顯示的卦象資料。";
+    return;
+  }
   els.ichingBadge.textContent = iching.moving.length ? `動爻 ${iching.moving.join(" / ")}` : "靜卦";
   els.primaryHexName.textContent = `${iching.primary.number}. ${iching.primary.name}`;
   els.changedHexName.textContent = `${iching.changed.number}. ${iching.changed.name}`;
@@ -1081,6 +1054,12 @@ function renderIChing(reading) {
 
 function renderMeihua(reading) {
   const { meihua } = reading;
+  if (!meihua || !meihua.primary || !meihua.changed || !meihua.upper || !meihua.lower || !trigrams[meihua.upper] || !trigrams[meihua.lower]) {
+    els.meihuaBadge.textContent = "舊紀錄";
+    els.meihuaPanel.innerHTML = '<p class="empty-note">（舊紀錄，無此資料）</p>';
+    els.meihuaMeaning.textContent = "這筆紀錄建立於梅花易數功能之前，沒有可顯示的卦象資料。";
+    return;
+  }
   els.meihuaBadge.textContent = `動 ${meihua.movingLine} 爻`;
   els.meihuaPanel.innerHTML = `<div class="meihua-row">
       <span>上卦</span><strong>${meihua.upper} ${trigrams[meihua.upper].symbol}</strong><small>${trigrams[meihua.upper].image}：${trigrams[meihua.upper].nature}</small>
@@ -1253,7 +1232,9 @@ function renderReading(reading, options = {}) {
   reading.verdictLabel = verdictLabel(reading.score);
   reading.verdictText = pickText(reading.score, reading.small, firstPass, lastPass);
   reading.adviceText = `${reading.small.advice} ${pickTopicReading(reading)}`;
-  reading.plainSummary = buildPlainSummary(reading);
+  reading.plainSummary = reading.iching && reading.meihua
+    ? buildPlainSummary(reading)
+    : reading.plainSummary || "（舊紀錄，無此資料）";
 
   els.verdictBadge.textContent = reading.verdictLabel;
   els.mainVerdict.textContent = reading.verdictText;
@@ -1288,8 +1269,16 @@ function renderReading(reading, options = {}) {
     `月將：${reading.calendarBase.monthGeneral}（${reading.calendarBase.monthGeneralTerm}後近似）`,
     `旬空：${reading.calendarBase.xunKong.join(", ")}`,
     `小六壬三數：${reading.smallDraws.join(", ")} -> ${reading.small.name}`,
-    `易經六爻：${reading.iching.values.join(", ")} -> ${reading.iching.primary.name} / ${reading.iching.changed.name}`,
-    `梅花三數：${reading.meihua.draws.join(", ")} -> ${reading.meihua.primary.name} / ${reading.meihua.changed.name}`,
+    `易經六爻：${
+      reading.iching && reading.iching.primary && reading.iching.changed
+        ? `${reading.iching.values.join(", ")} -> ${reading.iching.primary.name} / ${reading.iching.changed.name}`
+        : "（舊紀錄，無此資料）"
+    }`,
+    `梅花三數：${
+      reading.meihua && reading.meihua.primary && reading.meihua.changed
+        ? `${reading.meihua.draws.join(", ")} -> ${reading.meihua.primary.name} / ${reading.meihua.changed.name}`
+        : "（舊紀錄，無此資料）"
+    }`,
     `布盤月將：${branches[reading.monthGeneralIndex]}`,
     `占時：${branches[reading.hourIndex]}`,
     `人元：${branches[reading.subjectIndex]}`,
@@ -1311,7 +1300,7 @@ async function castReading() {
   await sleep(220);
 
   renderRitual(1, "取量子數");
-  await fetchBytes(96);
+  await fetchBytes(192);
   await sleep(220);
 
   renderRitual(2, "起小六壬");
@@ -1372,15 +1361,33 @@ function showError(target, error) {
   target.textContent = error.message || "發生錯誤";
 }
 
-document.querySelector("#refreshBytes").addEventListener("click", () => {
-  fetchBytes(64).catch((error) => showError(els.hexOutput, error));
+document.querySelector("#refreshBytes").addEventListener("click", async () => {
+  if (state.refreshing) return;
+  state.refreshing = true;
+  setLoading(true);
+  try {
+    await fetchBytes(64);
+  } catch (error) {
+    showError(els.hexOutput, error);
+  } finally {
+    state.refreshing = false;
+    setLoading(false);
+  }
 });
 
-document.querySelector("#castReading").addEventListener("click", () => {
-  castReading().catch((error) => {
+document.querySelector("#castReading").addEventListener("click", async () => {
+  if (state.casting) return;
+  state.casting = true;
+  setLoading(true);
+  try {
+    await castReading();
+  } catch (error) {
     renderRitual(-1, "起課失敗");
     showError(els.mainVerdict, error);
-  });
+  } finally {
+    state.casting = false;
+    setLoading(false);
+  }
 });
 
 els.copyReading.addEventListener("click", async () => {
